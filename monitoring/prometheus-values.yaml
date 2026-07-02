@@ -1,0 +1,43 @@
+# monitoring/prometheus-values.yaml
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+      # Scrape Cilium agent metrics from every node
+      - job_name: "cilium-agent"
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_k8s_app]
+            regex: cilium
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:9962"
+
+      # Scrape Hubble metrics
+      - job_name: "hubble"
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_k8s_app]
+            regex: hubble
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:9965"
+
+      # Scrape Tetragon metrics
+      - job_name: "tetragon"
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            regex: tetragon
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:2112"
+
+grafana:
+  enabled: true
+  adminPassword: "admin"

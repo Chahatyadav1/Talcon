@@ -1,0 +1,19 @@
+# cilium-policies/allow-app-ingress.yaml
+# Allow traffic to port 8080 only from within the same namespace
+apiVersion: cilium.io/v1
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-app-ingress
+  namespace: demo-app
+spec:
+  endpointSelector:
+    matchLabels:
+      app: demo-app
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": demo-app
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

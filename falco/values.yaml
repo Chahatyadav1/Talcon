@@ -1,0 +1,44 @@
+# falco/values.yaml
+driver:
+  kind: ebpf             # use the eBPF driver, not the kernel module
+
+falcosidekick:
+  enabled: true          # sidekick routes alerts to Slack and other destinations
+  config:
+    slack:
+      webhookurl: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+      minimumpriority: "warning"
+    customfields:
+      cluster: "ebpf-security-platform"
+      env: "demo"
+
+customRules:
+  custom-rules.yaml: |-
+    # Custom rule: detect any write to /etc directory
+    - rule: Write to /etc directory
+      desc: Detect file modification attempts inside /etc
+      condition: >
+        open_write
+        and fd.name startswith /etc
+        and not proc.name in (allowed_etc_writers)
+      output: >
+        File written in /etc (user=%user.name command=%proc.cmdline
+        file=%fd.name container=%container.name)
+      priority: WARNING
+      tags: [filesystem, mitre_persistence]
+
+    # Custom rule: detect base64 in command line (common obfuscation)
+    - rule: Base64 Encoded Execution
+      desc: Detect execution with base64-encoded payloads
+      condition: >
+        spawned_process
+        and proc.args contains "base64"
+        and proc.args contains "decode"
+      output: >
+        Possible encoded payload execution (command=%proc.cmdline
+        container=%container.name pod=%k8s.pod.name)
+      priority: WARNING
+      tags: [execution, mitre_defense_evasion]
+
+    - list: allowed_etc_writers
+      items: [dpkg, apt, apt-get, pip3]

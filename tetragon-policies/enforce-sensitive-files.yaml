@@ -1,0 +1,23 @@
+# tetragon-policies/enforce-sensitive-files.yaml
+# Returns EPERM (permission denied) to any process opening /etc/shadow
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: enforce-sensitive-files
+spec:
+  kprobes:
+    - call: "security_file_open"
+      syscall: false
+      args:
+        - index: 0
+          type: "file"
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: "Postfix"
+              values:
+                - "etc/shadow"
+                - "etc/gshadow"
+          matchActions:
+            - action: Override
+              argError: -1      # -1 = EPERM, the process receives "Operation not permitted"

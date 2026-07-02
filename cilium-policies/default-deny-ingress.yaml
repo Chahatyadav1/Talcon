@@ -1,0 +1,10 @@
+# cilium-policies/default-deny-ingress.yaml
+# Blocks all inbound connections to demo-app pods
+apiVersion: cilium.io/v1
+kind: CiliumNetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: demo-app
+spec:
+  endpointSelector: {}   # applies to all pods in this namespace
+  ingress: []            # empty list = deny all ingress
