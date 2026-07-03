@@ -1,10 +1,15 @@
-# tetragon-policies/observe-network.yaml
-# Logs every outbound TCP connection attempt from any pod
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
   name: observe-network
 spec:
+  podSelector:
+    matchExpressions:
+      - key: "k8s:io.kubernetes.pod.namespace"
+        operator: NotIn
+        values:
+          - "kube-system"
+          - "monitoring"
   kprobes:
     - call: "tcp_connect"
       syscall: false

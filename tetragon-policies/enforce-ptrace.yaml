@@ -5,6 +5,13 @@ kind: TracingPolicy
 metadata:
   name: enforce-ptrace
 spec:
+  podSelector:
+    matchExpressions:
+      - key: "k8s:io.kubernetes.pod.namespace"
+        operator: NotIn
+        values:
+          - "kube-system"
+          - "monitoring"
   kprobes:
     - call: "sys_ptrace"
       syscall: true

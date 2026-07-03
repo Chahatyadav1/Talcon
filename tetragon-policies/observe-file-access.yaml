@@ -1,10 +1,15 @@
-# tetragon-policies/observe-file-access.yaml
-# Logs any time a process tries to open /etc/shadow, /etc/passwd, or /etc/gshadow
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
   name: observe-file-access
 spec:
+  podSelector:
+    matchExpressions:
+      - key: "k8s:io.kubernetes.pod.namespace"
+        operator: NotIn
+        values:
+          - "kube-system"
+          - "monitoring"
   kprobes:
     - call: "security_file_open"
       syscall: false

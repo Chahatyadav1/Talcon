@@ -1,10 +1,15 @@
-# tetragon-policies/enforce-shells.yaml
-# KILLS any bash/sh/dash process the moment it is exec'd
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
   name: enforce-shells
 spec:
+  podSelector:
+    matchExpressions:
+      - key: "k8s:io.kubernetes.pod.namespace"
+        operator: NotIn
+        values:
+          - "kube-system"
+          - "monitoring"
   kprobes:
     - call: "sys_execve"
       syscall: true
@@ -20,4 +25,4 @@ spec:
                 - "/sh"
                 - "/dash"
           matchActions:
-            - action: Sigkill    # kernel sends SIGKILL to the process before it runs
+            - action: Sigkill

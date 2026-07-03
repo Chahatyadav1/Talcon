@@ -1,10 +1,15 @@
-# tetragon-policies/enforce-sensitive-files.yaml
-# Returns EPERM (permission denied) to any process opening /etc/shadow
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
   name: enforce-sensitive-files
 spec:
+  podSelector:
+    matchExpressions:
+      - key: "k8s:io.kubernetes.pod.namespace"
+        operator: NotIn
+        values:
+          - "kube-system"
+          - "monitoring"
   kprobes:
     - call: "security_file_open"
       syscall: false
@@ -20,4 +25,4 @@ spec:
                 - "etc/gshadow"
           matchActions:
             - action: Override
-              argError: -1      # -1 = EPERM, the process receives "Operation not permitted"
+              argError: -1
