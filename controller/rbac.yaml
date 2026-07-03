@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: security
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ir-controller
+  namespace: security
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ir-controller
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "create", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ir-controller
+subjects:
+  - kind: ServiceAccount
+    name: ir-controller
+    namespace: security
+roleRef:
+  kind: ClusterRole
+  name: ir-controller
+  apiGroup: rbac.authorization.k8s.io
