@@ -13,6 +13,9 @@ spec:
     - fromEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": demo-app
+      authentication:
+        mode: "required"
+
       toPorts:
         - ports:
             - port: "8080"
