@@ -2,6 +2,13 @@ apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
   name: enforce-sensitive-files
+  labels:
+    security.io/mitre-technique-id: "T1003.008"
+    security.io/mitre-tactic: "Credential Access"
+    security.io/control-type: "enforcement"
+  annotations:
+    security.io/mitre-url: "https://attack.mitre.org/techniques/T1003/008/"
+    security.io/description: "Blocks reads of /etc/shadow and credential files"
 spec:
   podSelector:
     matchExpressions:

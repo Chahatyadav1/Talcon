@@ -4,6 +4,13 @@ apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
   name: enforce-ptrace
+  labels:
+    security.io/mitre-technique-id: "T1611"
+    security.io/mitre-tactic: "Privilege Escalation"
+    security.io/control-type: "enforcement"
+  annotations:
+    security.io/mitre-url: "https://attack.mitre.org/techniques/T1611/"
+    security.io/description: "Blocks container escape via ptrace syscall"
 spec:
   podSelector:
     matchExpressions:

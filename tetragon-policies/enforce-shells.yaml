@@ -2,6 +2,13 @@ apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
   name: enforce-shells
+  labels:
+    security.io/mitre-technique-id: "T1059.004"
+    security.io/mitre-tactic: "Execution"
+    security.io/control-type: "enforcement"
+  annotations:
+    security.io/mitre-url: "https://attack.mitre.org/techniques/T1059/004/"
+    security.io/description: "Blocks interactive shell spawning inside containers"
 spec:
   podSelector:
     matchExpressions:
