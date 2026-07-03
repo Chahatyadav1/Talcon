@@ -1,0 +1,24 @@
+# Saturates one CPU core on demo-app pods for 60 seconds
+# Verify: security controls still fire even under CPU pressure
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: cpu-stress-chaos
+  namespace: demo-app
+spec:
+  appinfo:
+    appns:    demo-app
+    applabel: "app=demo-app"
+    appkind:  deployment
+  chaosServiceAccount: litmus-admin
+  experiments:
+    - name: pod-cpu-hog
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "60"
+            - name: CPU_CORES
+              value: "1"
+            - name: CPU_LOAD
+              value: "100"

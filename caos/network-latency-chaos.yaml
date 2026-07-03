@@ -1,0 +1,26 @@
+# Injects 2 second network latency into demo-app pods
+# Verify: Cilium still blocks unauthorized traffic even with degraded network
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: network-latency-chaos
+  namespace: demo-app
+spec:
+  appinfo:
+    appns:    demo-app
+    applabel: "app=demo-app"
+    appkind:  deployment
+  chaosServiceAccount: litmus-admin
+  experiments:
+    - name: pod-network-latency
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "60"
+            - name: NETWORK_LATENCY
+              value: "2000"
+            - name: JITTER
+              value: "500"
+            - name: CONTAINER_RUNTIME
+              value: "containerd"
