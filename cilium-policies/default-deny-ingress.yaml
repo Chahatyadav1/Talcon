@@ -1,6 +1,6 @@
 # cilium-policies/default-deny-ingress.yaml
 # Blocks all inbound connections to demo-app pods
-apiVersion: cilium.io/v1
+apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
   name: default-deny-ingress

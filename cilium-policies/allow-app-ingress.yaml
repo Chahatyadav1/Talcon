@@ -1,6 +1,6 @@
 # cilium-policies/allow-app-ingress.yaml
 # Allow traffic to port 8080 only from within the same namespace
-apiVersion: cilium.io/v1
+apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
   name: allow-app-ingress
