@@ -8,6 +8,8 @@ spec:
       - key: "k8s:io.kubernetes.pod.namespace"
         operator: NotIn
         values:
+          - "falco"
+          - "security"
           - "kube-system"
           - "monitoring"
   kprobes:

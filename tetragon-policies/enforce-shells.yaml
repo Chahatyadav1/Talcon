@@ -4,9 +4,9 @@ metadata:
   name: enforce-shells
   labels:
     security.io/mitre-technique-id: "T1059.004"
-    security.io/mitre-tactic: "Execution"
     security.io/control-type: "enforcement"
   annotations:
+    security.io/mitre-tactic: "Execution"
     security.io/mitre-url: "https://attack.mitre.org/techniques/T1059/004/"
     security.io/description: "Blocks interactive shell spawning inside containers"
 spec:
@@ -15,6 +15,8 @@ spec:
       - key: "k8s:io.kubernetes.pod.namespace"
         operator: NotIn
         values:
+          - "security"
+          - "falco"
           - "kube-system"
           - "monitoring"
   kprobes:

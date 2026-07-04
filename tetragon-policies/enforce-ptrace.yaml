@@ -6,9 +6,9 @@ metadata:
   name: enforce-ptrace
   labels:
     security.io/mitre-technique-id: "T1611"
-    security.io/mitre-tactic: "Privilege Escalation"
     security.io/control-type: "enforcement"
   annotations:
+    security.io/mitre-tactic: "Privilege Escalation"
     security.io/mitre-url: "https://attack.mitre.org/techniques/T1611/"
     security.io/description: "Blocks container escape via ptrace syscall"
 spec:
@@ -17,6 +17,8 @@ spec:
       - key: "k8s:io.kubernetes.pod.namespace"
         operator: NotIn
         values:
+          - "security"
+          - "falco"
           - "kube-system"
           - "monitoring"
   kprobes:
