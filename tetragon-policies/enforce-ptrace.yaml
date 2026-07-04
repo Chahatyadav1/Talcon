@@ -1,5 +1,3 @@
-# tetragon-policies/enforce-ptrace.yaml
-# Blocks ptrace syscall — prevents container escape and process injection
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
