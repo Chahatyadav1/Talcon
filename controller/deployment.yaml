@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ir-controller
+  labels:
+    run: ir-controller
+  namespace: security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: ir-controller
+  template:
+    metadata:
+      labels:
+        run: ir-controller
+    spec:
+      serviceAccountName: ir-controller
+      containers:
+      - name: ir-controller
+        image: docker.io/chahatyadav1/controller:v1.0.1
+        ports:
+        - containerPort: 8080
