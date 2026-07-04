@@ -1,0 +1,36 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mitre-attack-mapping
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: mitre.attack.events
+      interval: 30s
+      rules:
+        - record: security_mitre_events_total
+          expr: |
+            label_replace(rate(tetragon_policy_events_total{policy="enforce-shells"}[5m]) * 300, "technique_id", "T1059.004", "", "")
+          labels:
+            tactic: "Execution"
+            technique_name: "Unix Shell Spawn"
+        - record: security_mitre_events_total
+          expr: |
+            label_replace(rate(tetragon_policy_events_total{policy="enforce-sensitive-files"}[5m]) * 300, "technique_id", "T1003.008", "", "")
+          labels:
+            tactic: "Credential Access"
+            technique_name: "Shadow File Read"
+        - record: security_mitre_events_total
+          expr: |
+            label_replace(rate(tetragon_policy_events_total{policy="enforce-ptrace"}[5m]) * 300, "technique_id", "T1611", "", "")
+          labels:
+            tactic: "Privilege Escalation"
+            technique_name: "Container Escape"
+        - record: security_mitre_events_total
+          expr: |
+            label_replace(rate(tetragon_policy_events_total{policy="enforce-tmp-execution"}[5m]) * 300, "technique_id", "T1036", "", "")
+          labels:
+            tactic: "Defense Evasion"
+            technique_name: "Malware from Tmp"
