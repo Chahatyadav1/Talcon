@@ -26,9 +26,9 @@ spec:
             - index: 0
               operator: "Postfix"
               values:
-                - "etc/shadow"
-                - "etc/gshadow"
-                - "etc/passwd"
+                - "/etc/shadow"
+                - "/etc/gshadow"
+                - "/etc/passwd"
           matchActions:
             - action: Override
               argError: -1
