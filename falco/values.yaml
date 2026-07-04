@@ -1,4 +1,14 @@
 # falco/mitre-custom-rules.yaml
+falcosidekick:
+  enabled: true
+  config:
+    webhook:
+      address: "http://ir-controller.security.svc.cluster.local:8080/webhook"
+      minimumpriority: "critical"
+
+driver:
+  kind: modern_ebpf
+
 customRules:
   mitre-rules.yaml: |-
     - rule: Shell spawned in container
