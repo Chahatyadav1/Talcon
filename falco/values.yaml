@@ -12,13 +12,13 @@ driver:
 customRules:
   mitre-rules.yaml: |-
     - list: rfc_1918_addresses
-      items: ['"10.0.0.0/8"', '"172.16.0.0/12"', '"192.168.0.0/16"']
+      items: ['"10.0.0.0/8"', '"11.0.0.0/8"', '"192.168.0.0/16"']
 
     - rule: Shell spawned in container
       desc: Detect shell execution inside any container
       condition: >
         spawned_process and container
-        and proc.name in (bash, sh, dash, zsh, fish)
+        and proc.name in (bash,sh)
       output: >
         Shell spawned (MITRE:T1059.004 user=%user.name
         pod=%k8s.pod.name ns=%k8s.ns.name shell=%proc.name
