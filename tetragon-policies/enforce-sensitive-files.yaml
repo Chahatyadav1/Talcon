@@ -6,6 +6,9 @@ metadata:
     security.io/mitre-technique-id: "T1003.008"
     security.io/control-type: "enforcement"
 spec:
+  options:
+    - name: "disable-kprobe-multi"
+      value: "1"
   podSelector:
     matchExpressions:
       - key: "k8s:io.kubernetes.pod.namespace"
@@ -31,4 +34,4 @@ spec:
                 - "/etc/passwd"
           matchActions:
             - action: Override
-              argError: -1
+              argError: -13
