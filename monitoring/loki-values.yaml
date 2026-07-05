@@ -6,12 +6,9 @@ loki:
   commonConfig:
     replication_factor: 1
 
-  # Required in Loki v3.x — defines how logs are indexed and stored.
-  # tsdb is the modern index store (replaces boltdb-shipper).
-  # v13 is the latest schema version as of 2025.
   schemaConfig:
     configs:
-      - from: "2024-01-01" # any past date — schema applies from this date onward
+      - from: "2024-01-01"
         store: tsdb
         object_store: filesystem
         schema: v13
@@ -31,6 +28,7 @@ loki:
 
   compactor:
     retention_enabled: true
+    delete_request_store: filesystem
     working_directory: /var/loki/compactor
 
   server:
@@ -49,7 +47,6 @@ singleBinary:
     enabled: true
     size: 10Gi
 
-# Disable distributed components — not needed for SingleBinary
 backend:
   replicas: 0
 read:
