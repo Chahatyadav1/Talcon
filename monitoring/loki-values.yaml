@@ -1,0 +1,62 @@
+# monitoring/loki-values.yaml — KernelSentinel
+#
+# Single-binary Loki — everything in one pod, filesystem storage.
+# Right choice for a single-node learning cluster.
+# No S3, no microservices, no object storage overhead.
+#
+# Install:
+#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm repo update
+#   helm install loki grafana/loki \
+#     --namespace monitoring \
+#     --values monitoring/loki-values.yaml
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false       # no multi-tenancy — single cluster, no org IDs needed
+
+  commonConfig:
+    replication_factor: 1   # single node = 1 replica
+
+  storage:
+    type: filesystem        # no S3 or object storage needed for learning
+
+  limits_config:
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h   # keep 7 days of logs
+    ingestion_rate_mb: 16
+    ingestion_burst_size_mb: 32
+
+  compactor:
+    retention_enabled: true
+    retention_delete_delay: 2h
+    working_directory: /var/loki/compactor
+
+  server:
+    log_level: warn          # reduce Loki's own log noise
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi          # hard cap — protects your 8GB RAM on c7i.flex.xlarge
+  persistence:
+    enabled: true
+    size: 10Gi               # 10GB for logs — plenty for learning
+
+# Disable components not needed in SingleBinary mode
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+# Gateway (nginx) not needed for internal cluster use
+gateway:
+  enabled: false
