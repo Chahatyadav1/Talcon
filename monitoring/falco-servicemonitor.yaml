@@ -1,0 +1,126 @@
+# monitoring/falco-servicemonitor.yaml
+#
+# ServiceMonitor CRDs that tell the Prometheus Operator to scrape
+# Falco and Falcosidekick metrics automatically.
+#
+# Apply:
+#   kubectl apply -f monitoring/falco-servicemonitor.yaml
+#
+# Verify Prometheus is scraping:
+#   kubectl port-forward -n monitoring svc/prometheus-operated 9090:9090
+#   # Open http://localhost:9090/targets and look for falco and falcosidekick
+#
+# Key metrics you will see after scraping:
+#   falco_events_total{priority, rule, source}   — alerts fired by rule+priority
+#   falco_rules_loaded_info                       — number of rules loaded
+#   falco_kernel_tracepoints_hit_total            — raw kernel events seen
+#   falcosidekick_falco_events_total{priority}    — events routed by sidekick
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── ServiceMonitor: Falco agent metrics ──────────────────────────────────────
+# Falco exposes its own Prometheus metrics at port 8765 when
+# metrics are enabled in the Helm values (metrics.enabled=true).
+#
+# The Helm chart creates a Service named "falco" in the falco namespace
+# with labels: app.kubernetes.io/name=falco
+#
+# Port name in the Falco Helm chart Service: "http-metrics" (port 8765)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: falco
+  namespace: monitoring       # must be in the same namespace Prometheus watches
+  labels:
+    # This label must match the Prometheus operator's serviceMonitorSelector.
+    # If you installed prometheus via kube-prometheus-stack:
+    #   helm install prometheus prometheus-community/kube-prometheus-stack
+    # the default selector is: release=prometheus
+    release: prometheus
+spec:
+  # Look for the Falco Service in the falco namespace
+  namespaceSelector:
+    matchNames:
+      - falco
+  # Match the Service by its Helm-generated label
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: falco
+  endpoints:
+    - port: http-metrics       # port name from the Falco Helm Service
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      # Relabel rules that make Falco metrics easier to use in Grafana
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: falco_namespace
+        - targetLabel: cluster
+          replacement: kernelsentinel-1   # change to kernelsentinel-2 on cluster 2
+      # Metric relabeling — drop internal Go runtime metrics to reduce cardinality
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "go_.*"
+          action: drop
+
+---
+# ── ServiceMonitor: Falcosidekick metrics ────────────────────────────────────
+# Falcosidekick is the alert routing sidecar deployed alongside Falco.
+# It exposes its own metrics at port 2801 showing how many alerts were
+# routed to each destination (Slack, Loki, webhook, etc.)
+#
+# Metrics include:
+#   falcosidekick_falco_events_total{priority, rule, source, tags}
+#   falcosidekick_outputs_total{destination}  — alerts sent per output type
+#   falcosidekick_outputs_error_total{destination}  — failed deliveries
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: falcosidekick
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - falco
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: falcosidekick
+  endpoints:
+    - port: http              # falcosidekick Service port name (2801)
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: falco_namespace
+        - targetLabel: cluster
+          replacement: kernelsentinel-1
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "go_.*"
+          action: drop
+
+---
+# ── Falco Helm values addition — enable metrics endpoint ─────────────────────
+# The ServiceMonitor above only works if Falco actually exposes the metrics
+# endpoint. Add these to your falco/values.yaml before deploying:
+#
+#   metrics:
+#     enabled: true
+#     interval: 1h
+#     outputRule: true
+#     resourceUtilization: true
+#     falcoVersion: true
+#
+# Then upgrade:
+#   helm upgrade falco falcosecurity/falco \
+#     --namespace falco --reuse-values \
+#     --set metrics.enabled=true \
+#     --set metrics.outputRule=true
+#
+# Verify the metrics endpoint is live:
+#   kubectl port-forward -n falco svc/falco 8765:8765
+#   curl http://localhost:8765/metrics | grep falco_events
