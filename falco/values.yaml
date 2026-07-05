@@ -47,7 +47,7 @@ customRules:
     - list: shell_binaries
       items: [bash, sh, dash, zsh, fish, ksh, csh, tcsh]
 
-    - list: sensitive_files
+    - list: kernelsentinel_sensitive_files
       items: [/etc/shadow, /etc/gshadow, /etc/master.passwd, /etc/sudoers]
 
     - list: network_tools
@@ -105,8 +105,11 @@ customRules:
 
     - macro: is_netlink_socket
       condition: >
-        (fd.rip = "::" or fd.rip = "::1" or fd.rip = "127.0.0.1" or fd.rip = "0.0.0.0")
-        and (fd.rport = 0 or fd.rport startswith "0")
+        (fd.rip = "::" or
+         fd.rip = "::1" or
+         fd.rip = "127.0.0.1" or
+         fd.rip = "0.0.0.0")
+        and fd.rport = 0
 
     - macro: interactive_shell
       condition: >
@@ -142,7 +145,7 @@ customRules:
       condition: >
         open_read
         and in_app_container
-        and fd.name in (sensitive_files)
+        and fd.name in (kernelsentinel_sensitive_files)
         and not proc.name in (trusted_credential_readers)
         and not proc.cmdline startswith "runc:"
       output: >
@@ -232,15 +235,13 @@ customRules:
 
     - rule: T1071 Unexpected Outbound Connection
       desc: >
-        Outbound connection to non-RFC1918 address from an application container.
-        Excludes: system namespaces, netlink sockets (iptables), loopback,
-        DNS port 53, and trusted infrastructure processes.
+        Outbound connection from an application container.
+        Excludes loopback, DNS, Falco infrastructure, and netlink sockets.
       condition: >
         outbound
         and in_app_container
-        and not fd.sip in (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
         and not fd.rip in ("::", "::1", "127.0.0.1", "0.0.0.0")
-        and not fd.rport in (53)
+        and fd.rport != 53
         and not proc.name in (trusted_network_procs)
         and not is_netlink_socket
       output: >
