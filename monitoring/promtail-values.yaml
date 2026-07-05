@@ -1,56 +1,4 @@
-# monitoring/promtail-values.yaml — KernelSentinel
-#
-# Tails Tetragon's JSON event file from the host node
-# and ships structured events to Loki.
-#
-# Install:
-#   helm install promtail grafana/promtail \
-#     --namespace monitoring \
-#     --values monitoring/promtail-values.yaml
-
-# Must run as root to read Tetragon's log file (written by root on the host)
-podSecurityContext:
-  runAsUser: 0
-  runAsGroup: 0
-
-containerSecurityContext:
-  readOnlyRootFilesystem: true
-  capabilities:
-    drop: [ALL]
-    add: [DAC_READ_SEARCH]
-
-# Tolerate the control-plane node (single-node kubeadm)
-tolerations:
-  - key: node-role.kubernetes.io/control-plane
-    operator: Exists
-    effect: NoSchedule
-
-# Mount Tetragon's log directory from the host
-extraVolumes:
-  - name: tetragon-logs
-    hostPath:
-      path: /var/log/tetragon
-      type: DirectoryOrCreate
-
-extraVolumeMounts:
-  - name: tetragon-logs
-    mountPath: /var/log/tetragon
-    readOnly: true
-
-config:
-  clients:
-    - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
-      batchwait: 1s
-      batchsize: 102400
-      backoff_config:
-        min_period: 100ms
-        max_period: 10s
-        max_retries: 5
-
-  positions:
-    filename: /run/promtail/positions.yaml
-
-  snippets:
+snippets:
     extraScrapeConfigs: |
       - job_name: tetragon
         static_configs:
@@ -77,23 +25,23 @@ config:
           - template:
               source: event_type
               template: >-
-                {{- if .exec_binary -}}process_exec
-                {{- else if .kprobe_function -}}process_kprobe
-                {{- else if .exit_binary -}}process_exit
-                {{- else -}}unknown{{- end -}}
+                {{"{{"}}- if .exec_binary -{{"}}"}}process_exec
+                {{"{{"}}- else if .kprobe_function -{{"}}"}}process_kprobe
+                {{"{{"}}- else if .exit_binary -{{"}}"}}process_exit
+                {{"{{"}}- else -{{"}}"}}unknown{{"{{"}}- end -{{"}}"}}
           - template:
               source: pod_namespace
               template: >-
-                {{- if .exec_namespace -}}{{ .exec_namespace }}
-                {{- else if .kprobe_namespace -}}{{ .kprobe_namespace }}
-                {{- else if .exit_namespace -}}{{ .exit_namespace }}
-                {{- else -}}unknown{{- end -}}
+                {{"{{"}}- if .exec_namespace -{{"}}"}}{{"{{"}} .exec_namespace {{"}}"}}
+                {{"{{"}}- else if .kprobe_namespace -{{"}}"}}{{"{{"}} .kprobe_namespace {{"}}"}}
+                {{"{{"}}- else if .exit_namespace -{{"}}"}}{{"{{"}} .exit_namespace {{"}}"}}
+                {{"{{"}}- else -{{"}}"}}unknown{{"{{"}}- end -{{"}}"}}
           - template:
               source: enforcement
               template: >-
-                {{- if eq .kprobe_action "KPROBE_ACTION_SIGKILL" -}}blocked_kill
-                {{- else if eq .kprobe_action "KPROBE_ACTION_OVERRIDE" -}}blocked_override
-                {{- else -}}observed{{- end -}}
+                {{"{{"}}- if eq .kprobe_action "KPROBE_ACTION_SIGKILL" -{{"}}"}}blocked_kill
+                {{"{{"}}- else if eq .kprobe_action "KPROBE_ACTION_OVERRIDE" -{{"}}"}}blocked_override
+                {{"{{"}}- else -{{"}}"}}observed{{"{{"}}- end -{{"}}"}}
           - labels:
               event_type: event_type
               pod_namespace: pod_namespace
