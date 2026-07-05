@@ -1,63 +1,11 @@
-# falco/values.yaml
+driver:
+  kind: ebpf
+
 falcosidekick:
   enabled: true
   config:
     webhook:
       address: "http://ir-controller.security.svc.cluster.local:8080/webhook"
       minimumpriority: "critical"
-
-driver:
-  kind: modern_ebpf
-
-customRules:
-  mitre-rules.yaml: |-
-    - list: rfc_1918_addresses
-      items: ['"10.0.0.0/8"', '"11.0.0.0/8"', '"192.168.0.0/16"','"172.0.0.0/8']
-
-    - rule: Shell spawned in container
-      desc: Detect shell execution inside any container
-      condition: >
-        spawned_process and container
-        and proc.name in (bash,sh)
-      output: >
-        Shell spawned (MITRE:T1059.004 user=%user.name
-        pod=%k8s.pod.name ns=%k8s.ns.name shell=%proc.name
-        parent=%proc.pname cmdline=%proc.cmdline)
-      priority: CRITICAL
-      tags: [execution, mitre_execution, T1059.004]
-
-    - rule: Credential file read in container
-      desc: Detect reads of /etc/shadow or /etc/passwd
-      condition: >
-        open_read and container
-        and fd.name in (/etc/shadow, /etc/gshadow, /etc/passwd)
-      output: >
-        Credential file read (MITRE:T1003.008 user=%user.name
-        pod=%k8s.pod.name ns=%k8s.ns.name file=%fd.name
-        cmdline=%proc.cmdline)
-      priority: CRITICAL
-      tags: [credential_access, mitre_credential_access, T1003.008]
-
-    - rule: Outbound connection to unexpected destination
-      desc: Detect network connections outside allowed policy
-      condition: >
-        outbound and container
-        and not fd.snet in (rfc_1918_addresses)
-      output: >
-        Unexpected outbound connection (MITRE:T1071 user=%user.name
-        pod=%k8s.pod.name ns=%k8s.ns.name dst=%fd.rip:%fd.rport
-        cmdline=%proc.cmdline)
-      priority: CRITICAL
-      tags: [command_and_control, mitre_command_and_control, T1071]
-
-    - rule: Binary executed from tmp directory
-      desc: Detect execution from /tmp - common malware staging
-      condition: >
-        spawned_process and container
-        and proc.exe startswith /tmp
-      output: >
-        Binary executed from tmp (MITRE:T1036 user=%user.name
-        pod=%k8s.pod.name ns=%k8s.ns.name exe=%proc.exe
-        cmdline=%proc.cmdline)
-      priority: CRITICAL
-      tags: [defense_evasion, mitre_defense_evasion, T1036]
+    customfields:
+      cluster: "kernelsentinel"
