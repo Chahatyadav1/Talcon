@@ -25,9 +25,6 @@ falcosidekick:
     slack:
       webhookurl: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
       minimumpriority: "warning"
-    loki:
-      hostport: "http://loki.monitoring.svc.cluster.local:3100"
-      minimumpriority: "debug"
     webhook:
       address: "http://ir-controller.security.svc.cluster.local:8080/webhook"
       minimumpriority: "critical"
