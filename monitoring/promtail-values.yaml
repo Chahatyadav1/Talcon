@@ -95,11 +95,11 @@ config:
                 {{- else if eq .kprobe_action "KPROBE_ACTION_OVERRIDE" -}}blocked_override
                 {{- else -}}observed{{- end -}}
           - labels:
-              event_type:
-              pod_namespace:
-              kprobe_action:
-              enforcement:
-              node_name:
+              event_type: event_type
+              pod_namespace: pod_namespace
+              kprobe_action: kprobe_action
+              enforcement: enforcement
+              node_name: node_name
           - timestamp:
               source: event_time
               format: RFC3339Nano
