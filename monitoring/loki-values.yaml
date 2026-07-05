@@ -1,40 +1,40 @@
-# monitoring/loki-values.yaml — KernelSentinel
-#
-# Single-binary Loki — everything in one pod, filesystem storage.
-# Right choice for a single-node learning cluster.
-# No S3, no microservices, no object storage overhead.
-#
-# Install:
-#   helm repo add grafana https://grafana.github.io/helm-charts
-#   helm repo update
-#   helm install loki grafana/loki \
-#     --namespace monitoring \
-#     --values monitoring/loki-values.yaml
-
 deploymentMode: SingleBinary
 
 loki:
-  auth_enabled: false       # no multi-tenancy — single cluster, no org IDs needed
+  auth_enabled: false
 
   commonConfig:
-    replication_factor: 1   # single node = 1 replica
+    replication_factor: 1
+
+  # Required in Loki v3.x — defines how logs are indexed and stored.
+  # tsdb is the modern index store (replaces boltdb-shipper).
+  # v13 is the latest schema version as of 2025.
+  schemaConfig:
+    configs:
+      - from: "2024-01-01" # any past date — schema applies from this date onward
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
 
   storage:
-    type: filesystem        # no S3 or object storage needed for learning
+    type: filesystem
 
   limits_config:
     reject_old_samples: true
-    reject_old_samples_max_age: 168h   # keep 7 days of logs
+    reject_old_samples_max_age: 168h
     ingestion_rate_mb: 16
     ingestion_burst_size_mb: 32
+    retention_period: 168h # 7 days
 
   compactor:
     retention_enabled: true
-    retention_delete_delay: 2h
     working_directory: /var/loki/compactor
 
   server:
-    log_level: warn          # reduce Loki's own log noise
+    log_level: warn
 
 singleBinary:
   replicas: 1
@@ -44,19 +44,17 @@ singleBinary:
       memory: 256Mi
     limits:
       cpu: 500m
-      memory: 512Mi          # hard cap — protects your 8GB RAM on c7i.flex.xlarge
+      memory: 512Mi
   persistence:
     enabled: true
-    size: 10Gi               # 10GB for logs — plenty for learning
+    size: 10Gi
 
-# Disable components not needed in SingleBinary mode
+# Disable distributed components — not needed for SingleBinary
 backend:
   replicas: 0
 read:
   replicas: 0
 write:
   replicas: 0
-
-# Gateway (nginx) not needed for internal cluster use
 gateway:
   enabled: false
