@@ -1,4 +1,3 @@
-
 # falco/values.yaml — KernelSentinel
 # Single file: Helm config + all MITRE detection rules combined.
 #
@@ -11,8 +10,10 @@
 #   helm install falco falcosecurity/falco \
 #     --namespace falco --create-namespace \
 #     --values falco/values.yaml
+
 driver:
-  kind: ebpf
+  kind: modern_ebpf     # CO-RE based eBPF — works on kernel 5.8+, no kernel headers needed
+                        # replaces deprecated driver.kind=ebpf (old probe-based eBPF)
 
 metrics:
   enabled: true
@@ -21,17 +22,17 @@ metrics:
 falcosidekick:
   enabled: true
   config:
-    # slack:
-    #   webhookurl: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-    #   minimumpriority: "warning"
-    # loki:
-    #   hostport: "http://loki.monitoring.svc.cluster.local:3100"
-    #   minimumpriority: "debug"
+    slack:
+      webhookurl: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+      minimumpriority: "warning"
+    loki:
+      hostport: "http://loki.monitoring.svc.cluster.local:3100"
+      minimumpriority: "debug"
     webhook:
       address: "http://ir-controller.security.svc.cluster.local:8080/webhook"
       minimumpriority: "critical"
     customfields:
-      cluster: "kernelsentinel"
+      "cluster": "kernelsentinel"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Custom MITRE ATT&CK rules
