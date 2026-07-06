@@ -11,9 +11,6 @@ metrics:
 falcosidekick:
   enabled: true
   config:
-    slack:
-      webhookurl: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-      minimumpriority: "warning"
     webhook:
       address: "http://security-ir-controller.security.svc.cluster.local:8080/webhook"
       minimumpriority: "critical"
