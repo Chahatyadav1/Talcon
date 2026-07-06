@@ -103,24 +103,3 @@ spec:
           regex: "go_.*"
           action: drop
 
----
-# ── Falco Helm values addition — enable metrics endpoint ─────────────────────
-# The ServiceMonitor above only works if Falco actually exposes the metrics
-# endpoint. Add these to your falco/values.yaml before deploying:
-#
-#   metrics:
-#     enabled: true
-#     interval: 1h
-#     outputRule: true
-#     resourceUtilization: true
-#     falcoVersion: true
-#
-# Then upgrade:
-#   helm upgrade falco falcosecurity/falco \
-#     --namespace falco --reuse-values \
-#     --set metrics.enabled=true \
-#     --set metrics.outputRule=true
-#
-# Verify the metrics endpoint is live:
-#   kubectl port-forward -n falco svc/falco 8765:8765
-#   curl http://localhost:8765/metrics | grep falco_events
