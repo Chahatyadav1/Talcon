@@ -3,6 +3,7 @@ import json
 import logging
 import datetime
 import threading
+import re
 from flask import Flask, request, jsonify
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
@@ -31,17 +32,17 @@ QUARANTINE_PRIORITIES = {"CRITICAL", "EMERGENCY", "ALERT"}
 
 SYSTEM_NAMESPACES = {
     "kube-system", "cilium-spire",
-    "litmus", "monitoring", "falco", "security"
+    "monitoring", "falco", "security"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# WHITELISTED RULES: Only these trigger auto-quarantine
-# Add rules ONLY after confirming they detect real threats
-# ═══════════════════════════════════════════════════════════════════════════════
 HIGH_CONFIDENCE_RULES = {
-    # Add your custom TracingPolicy rules here
-    # Example: "T1611 Container Escape via Ptrace",
-    # Example: "T1059.004 Shell Spawned in Container",
+    "T1059.004",  # Shell Spawned in Container
+    "T1003.008",  # Sensitive File Read
+    "T1611",      # Ptrace/Mount Syscall
+    "T1036",      # Defense Evasion (Binary from Tmp, Base64 Decode)
+    "T1105",      # Download Tool
+    "T1095",      # Reverse Shell
+    "T1071",      # curl
 }
 
 MITRE_MAP = {
@@ -66,11 +67,39 @@ def get_mitre(text: str):
             return info
     return ("T1059", "Execution", "Unknown Technique")
 
+def extract_pod_info(output: str, output_fields: dict):
+    """
+    Extract pod_name and namespace from either:
+    1. Falco text output (format: "pod=%pod_name ns=%namespace")
+    2. output_fields JSON (fallback)
+    """
+    pod_name = None
+    namespace = "default"
+
+    # Try parsing text output first (format from custom rules)
+    if output:
+        pod_match = re.search(r'pod=([^\s]+)', output)
+        if pod_match:
+            pod_name = pod_match.group(1)
+            if pod_name == "<NA>":
+                pod_name = None
+        ns_match = re.search(r'ns=([^\s]+)', output)
+        if ns_match and ns_match.group(1) != "<NA>":
+            namespace = ns_match.group(1)
+
+    if not pod_name and output_fields:
+        pod_name = output_fields.get("k8s.pod.name") or output_fields.get("k8s_pod_name")
+        if pod_name == "<NA>":
+            pod_name = None
+        namespace = output_fields.get("k8s.ns.name") or output_fields.get("k8s_ns_name") or namespace
+
+    return pod_name, namespace
+
 def is_rule_whitelisted(rule: str) -> bool:
-    """Check if rule is whitelisted."""
+    """Check if rule is whitelisted by MITRE ID or partial name."""
     rule_lower = rule.lower()
-    for whitelisted_rule in HIGH_CONFIDENCE_RULES:
-        if whitelisted_rule.lower() in rule_lower:
+    for whitelisted_id in HIGH_CONFIDENCE_RULES:
+        if whitelisted_id.lower() in rule_lower:
             return True
     return False
 
@@ -185,21 +214,18 @@ def falco_webhook():
 
     log.info(f"Alert received: [{priority}] {rule}")
 
-    # Step 1: Check rule whitelist
     if not is_rule_whitelisted(rule):
-        log.info(f"⊘ Rule NOT whitelisted — skipping quarantine")
+        log.info(f"⊘ Rule NOT whitelisted ({rule}) — skipping quarantine")
         return jsonify({"status": "ignored", "reason": "rule_not_whitelisted"}), 200
 
-    # Step 2: Check priority
     if priority not in QUARANTINE_PRIORITIES:
+        log.info(f"⊘ Priority {priority} below threshold — skipping")
         return jsonify({"status": "ignored", "priority": priority}), 200
 
-    # Step 3: Extract pod info
-    pod_name = output_fields.get("k8s.pod.name", "")
-    namespace = output_fields.get("k8s.ns.name", "default")
+    pod_name, namespace = extract_pod_info(output, output_fields)
 
-    if not pod_name or pod_name == "<NA>":
-        log.warning("⊘ No pod name in alert — skipping")
+    if not pod_name:
+        log.warning(f"⊘ No pod name in alert — skipping")
         return jsonify({"status": "no_pod"}), 200
 
     if namespace in SYSTEM_NAMESPACES:
@@ -208,7 +234,6 @@ def falco_webhook():
 
     mitre_id, mitre_tactic, mitre_name = get_mitre(output + " " + rule)
 
-    # Step 4: Get pod metadata
     try:
         pod = v1.read_namespaced_pod(pod_name, namespace)
         pod_labels = pod.metadata.labels or {}
@@ -217,8 +242,7 @@ def falco_webhook():
         log.error(f"Pod not found {pod_name}/{namespace}: {e}")
         return jsonify({"status": "pod_not_found"}), 200
 
-    # Step 5: Execute quarantine (whitelisted + CRITICAL)
-    log.warning(f"🚨 QUARANTINING: {pod_name}/{namespace} — Rule: {rule}")
+    log.warning(f"QUARANTINING: {pod_name}/{namespace} — Rule: {rule} [{mitre_id}]")
 
     threads = [
         threading.Thread(target=apply_quarantine_network_policy, args=(namespace, pod_name, pod_labels)),
