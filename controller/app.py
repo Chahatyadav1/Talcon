@@ -150,7 +150,7 @@ def annotate_quarantined_pod(namespace: str, pod_name: str, reason: str, mitre_i
     }
     try:
         v1.patch_namespaced_pod(pod_name, namespace, patch)
-        log.info(f"✓ Pod annotated: {pod_name}/{namespace}")
+        log.info(f"Pod annotated: {pod_name}/{namespace}")
     except ApiException as e:
         log.error(f"Failed to annotate pod: {e}")
 
@@ -175,7 +175,7 @@ def create_audit_event(namespace: str, pod_name: str, reason: str, mitre_id: str
     }
     try:
         v1.create_namespaced_event(namespace, body)
-        log.info(f"✓ Audit event created for {pod_name}/{namespace}")
+        log.info(f"Audit event created for {pod_name}/{namespace}")
     except ApiException as e:
         log.error(f"Failed to create audit event: {e}")
 
@@ -198,7 +198,7 @@ def send_slack_alert(pod_name: str, namespace: str, rule: str, mitre_id: str, mi
     }
     try:
         requests.post(SLACK_WEBHOOK, json=payload, timeout=5)
-        log.info(f"✓ Slack alert sent")
+        log.info(f"Slack alert sent")
     except Exception as e:
         log.error(f"Slack notification failed: {e}")
 
@@ -214,21 +214,21 @@ def falco_webhook():
     log.info(f"Alert received: [{priority}] {rule}")
 
     if not is_rule_whitelisted(rule):
-        log.info(f"⊘ Rule NOT whitelisted ({rule}) — skipping quarantine")
+        log.info(f"Rule NOT whitelisted ({rule}) — skipping quarantine")
         return jsonify({"status": "ignored", "reason": "rule_not_whitelisted"}), 200
 
     if priority not in QUARANTINE_PRIORITIES:
-        log.info(f"⊘ Priority {priority} below threshold — skipping")
+        log.info(f"Priority {priority} below threshold — skipping")
         return jsonify({"status": "ignored", "priority": priority}), 200
 
     pod_name, namespace = extract_pod_info(output, output_fields)
 
     if not pod_name:
-        log.warning(f"⊘ No pod name in alert — skipping")
+        log.warning(f"No pod name in alert — skipping")
         return jsonify({"status": "no_pod"}), 200
 
     if namespace in SYSTEM_NAMESPACES:
-        log.info(f"⊘ System namespace {namespace} — skipping")
+        log.info(f"System namespace {namespace} — skipping")
         return jsonify({"status": "system_ns_skipped"}), 200
 
     mitre_id, mitre_tactic, mitre_name = get_mitre(output + " " + rule)
@@ -254,7 +254,7 @@ def falco_webhook():
     for t in threads:
         t.join(timeout=10)
 
-    log.info(f"✓ Incident response complete for {pod_name}/{namespace}")
+    log.info(f"Incident response complete for {pod_name}/{namespace}")
     return jsonify({"status": "quarantined", "pod": pod_name, "namespace": namespace, "mitre": mitre_id}), 200
 
 @app.route("/api/incidents")
