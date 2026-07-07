@@ -1,20 +1,71 @@
-# Falco Helm values with minimal, high-fidelity MITRE rules
-# Fixed: all macros defined, proper YAML syntax
+# Falco values.yaml - webhook configured, Slack URL via --set
+# Deploy with:
+# helm install falco falcosecurity/falco -n falco -f values.yaml \
+#   --set "falcosidekick.config.slack.webhookurl=YOUR_SLACK_WEBHOOK_URL"
 
 driver:
   kind: modern_ebpf
+
+# Falco by default stops at the first matching rule per event type ("first match
+# wins"). This means broad stock rules (e.g. "Terminal shell in container") can
+# shadow our more specific custom MITRE rules for the same execve/open event,
+# so the custom CRITICAL rule never even gets evaluated.
+# rule_matching: all (Falco >= 0.36.0) evaluates every matching rule instead,
+# at the cost of somewhat higher CPU usage.
+falco:
+  rule_matching: all
 
 metrics:
   enabled: true
   outputRule: true
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# FALCOSIDEKICK - Alert Router
+# ═══════════════════════════════════════════════════════════════════════════════
 falcosidekick:
   enabled: true
-  config:
-    webhook:
-      address: "http://security-ir-controller.security.svc.cluster.local:8080/webhook"
-      minimumpriority: "critical"
+  replicaCount: 1
 
+  # Web UI for viewing alerts
+  webui:
+    enabled: true
+    replicaCount: 1
+
+  config:
+    debug: false
+
+    # ───────────────────────────────────────────────────────────────────────────
+    # WEBHOOK OUTPUT - Routes alerts to IR Controller (auto-quarantine)
+    # ───────────────────────────────────────────────────────────────────────────
+    webhook:
+      address: "http://ir-controller.security.svc.cluster.local:8080/webhook"
+      minimumpriority: "critical"
+      checkcert: false
+      method: "POST"
+
+    # ───────────────────────────────────────────────────────────────────────────
+    # SLACK OUTPUT - Pass URL via Helm CLI with:
+    # --set "falcosidekick.config.slack.webhookurl=YOUR_SLACK_WEBHOOK_URL"
+    # ───────────────────────────────────────────────────────────────────────────
+    slack:
+      # webhookurl: PASS VIA --set FLAG (do not set here)
+      minimumpriority: "warning"
+      outputformat: "all"
+      messageformat: "Falco Alert: *{{ .Rule }}*"
+      footer: "Falco Security"
+      icon: "https://raw.githubusercontent.com/falcosecurity/falco/master/doc/falco-white.png"
+      username: "Falco"
+
+    # ───────────────────────────────────────────────────────────────────────────
+    # WEB UI OUTPUT
+    # ───────────────────────────────────────────────────────────────────────────
+    webui:
+      url: "http://localhost:2802"
+      minimumpriority: "warning"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CUSTOM MITRE RULES
+# ═══════════════════════════════════════════════════════════════════════════════
 customRules:
   mitre-rules.yaml: |-
 
@@ -23,7 +74,7 @@ customRules:
     - list: shell_binaries
       items: [bash, sh, dash, zsh, fish, ksh, csh, tcsh]
     
-    - list: sensitive_files
+    - list: sensitive_files_lists
       items: [/etc/shadow, /etc/gshadow, /etc/master.passwd, /etc/sudoers]
     
     - list: network_tools
@@ -37,6 +88,9 @@ customRules:
     
     - list: system_ns
       items: [kube-system, kube-public, kube-node-lease, kube-apiserver, monitoring, falco, security, cilium-spire, litmus, argocd]
+    
+    - list: private_ip_ranges
+      items: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
     
     # ── Macros ───────────────────────────────────────────────────────────────
     
@@ -55,7 +109,8 @@ customRules:
         (spawned_process
         and in_app_container
         and proc.name in (shell_binaries)
-        and not proc.pname in (container_runtimes, systemd, sshd, init, kubelet, bash, sh))
+        and proc.tty != 0
+        and not proc.pname in (systemd, sshd, init, kubelet))
       output: "MITRE:T1059.004 Shell spawned user=%user.name shell=%proc.name parent=%proc.pname pod=%k8s.pod.name ns=%k8s.ns.name"
       priority: CRITICAL
       tags: [mitre_execution, T1059.004, container]
@@ -67,9 +122,8 @@ customRules:
       desc: Sensitive file read inside running container
       condition: >
         (evt.type in (open, openat, openat2)
-        and evt.direction = <
         and in_app_container
-        and fd.name in (sensitive_files)
+        and fd.name in (sensitive_files_lists)
         and not proc.name in (container_runtimes, useradd, usermod, id, getent)
         and not proc.pname in (container_runtimes))
       output: "MITRE:T1003.008 Credential file read user=%user.name file=%fd.name proc=%proc.name pod=%k8s.pod.name ns=%k8s.ns.name"
@@ -83,7 +137,9 @@ customRules:
       desc: ptrace syscall from inside application container
       condition: >
         (evt.type = ptrace
-        and in_app_container)
+        and in_app_container
+        and not proc.name startswith "runc"
+        and not proc.name in (container_runtimes, pause))
       output: "MITRE:T1611 ptrace in container user=%user.name proc=%proc.name pid=%proc.pid pod=%k8s.pod.name ns=%k8s.ns.name"
       priority: CRITICAL
       tags: [mitre_privilege_escalation, T1611, container]
@@ -95,7 +151,9 @@ customRules:
       desc: mount syscall from inside application container
       condition: >
         (evt.type = mount
-        and in_app_container)
+        and in_app_container
+        and not proc.name startswith "runc"
+        and not proc.name in (container_runtimes, pause))
       output: "MITRE:T1611 mount in container user=%user.name proc=%proc.name pod=%k8s.pod.name ns=%k8s.ns.name"
       priority: CRITICAL
       tags: [mitre_privilege_escalation, T1611, container]
@@ -139,11 +197,9 @@ customRules:
         and fd.rport != 53
         and fd.rport != 443
         and fd.rport != 80
-        and not fd.sip in ("::", "::1", "127.0.0.1", "0.0.0.0")
-        and not fd.dip startswith "10."
-        and not fd.dip startswith "172.16."
-        and not fd.dip startswith "192.168.")
-      output: "MITRE:T1071 Unexpected outbound user=%user.name proc=%proc.name dst=%fd.dip:%fd.rport pod=%k8s.pod.name ns=%k8s.ns.name"
+        and not fd.rip in ("::", "::1", "127.0.0.1", "0.0.0.0")
+        and not fd.rnet in (private_ip_ranges))
+      output: "MITRE:T1071 Unexpected outbound user=%user.name proc=%proc.name dst=%fd.rip:%fd.rport pod=%k8s.pod.name ns=%k8s.ns.name"
       priority: CRITICAL
       tags: [mitre_command_and_control, T1071, container]
 
@@ -195,7 +251,6 @@ customRules:
       desc: Service account token read by unexpected process
       condition: >
         (evt.type in (open, openat, openat2)
-        and evt.direction = <
         and in_app_container
         and fd.name startswith /var/run/secrets/kubernetes.io/serviceaccount
         and not proc.name in (container_runtimes, pause))
