@@ -1,17 +1,6 @@
-# Falco values.yaml - webhook configured, Slack URL via --set
-# Deploy with:
-# helm install falco falcosecurity/falco -n falco -f values.yaml \
-#   --set "falcosidekick.config.slack.webhookurl=YOUR_SLACK_WEBHOOK_URL"
-
 driver:
   kind: modern_ebpf
 
-# Falco by default stops at the first matching rule per event type ("first match
-# wins"). This means broad stock rules (e.g. "Terminal shell in container") can
-# shadow our more specific custom MITRE rules for the same execve/open event,
-# so the custom CRITICAL rule never even gets evaluated.
-# rule_matching: all (Falco >= 0.36.0) evaluates every matching rule instead,
-# at the cost of somewhat higher CPU usage.
 falco:
   rule_matching: all
 
@@ -19,58 +8,33 @@ metrics:
   enabled: true
   outputRule: true
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# FALCOSIDEKICK - Alert Router
-# ═══════════════════════════════════════════════════════════════════════════════
 falcosidekick:
   enabled: true
   replicaCount: 1
-
-  # Web UI for viewing alerts
   webui:
     enabled: true
     replicaCount: 1
-
   config:
     debug: false
-
-    # ───────────────────────────────────────────────────────────────────────────
-    # WEBHOOK OUTPUT - Routes alerts to IR Controller (auto-quarantine)
-    # ───────────────────────────────────────────────────────────────────────────
     webhook:
       address: "http://ir-controller.security.svc.cluster.local:8080/webhook"
       minimumpriority: "critical"
       checkcert: false
       method: "POST"
-
-    # ───────────────────────────────────────────────────────────────────────────
-    # SLACK OUTPUT - Pass URL via Helm CLI with:
-    # --set "falcosidekick.config.slack.webhookurl=YOUR_SLACK_WEBHOOK_URL"
-    # ───────────────────────────────────────────────────────────────────────────
     slack:
-      # webhookurl: PASS VIA --set FLAG (do not set here)
       minimumpriority: "warning"
       outputformat: "all"
       messageformat: "Falco Alert: *{{ .Rule }}*"
       footer: "Falco Security"
       icon: "https://raw.githubusercontent.com/falcosecurity/falco/master/doc/falco-white.png"
       username: "Falco"
-
-    # ───────────────────────────────────────────────────────────────────────────
-    # WEB UI OUTPUT
-    # ───────────────────────────────────────────────────────────────────────────
     webui:
       url: "http://localhost:2802"
       minimumpriority: "warning"
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# CUSTOM MITRE RULES
-# ═══════════════════════════════════════════════════════════════════════════════
 customRules:
   mitre-rules.yaml: |-
 
-    # ── Lists ────────────────────────────────────────────────────────────────
-    
     - list: shell_binaries
       items: [bash, sh, dash, zsh, fish, ksh, csh, tcsh]
     
@@ -92,7 +56,6 @@ customRules:
     - list: private_ip_ranges
       items: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
     
-    # ── Macros ───────────────────────────────────────────────────────────────
     
     - macro: in_app_container
       condition: (container and container.id != host and k8s.ns.name != "<NA>" and not k8s.ns.name in (system_ns))
@@ -100,9 +63,8 @@ customRules:
     - macro: spawned_process
       condition: (evt.type = execve)
     
-    # ─────────────────────────────────────────────────────────────────────────
     # T1059.004 — Execution: Interactive Shell
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1059.004 Shell Spawned in Container
       desc: Interactive shell spawned inside application container
       condition: >
@@ -115,9 +77,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_execution, T1059.004, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1003.008 — Credential Access: Sensitive File Read
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1003.008 Sensitive File Read in Container
       desc: Sensitive file read inside running container
       condition: >
@@ -130,9 +91,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_credential_access, T1003.008, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1611 — Privilege Escalation: Ptrace
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1611 Ptrace Syscall in Container
       desc: ptrace syscall from inside application container
       condition: >
@@ -144,9 +104,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_privilege_escalation, T1611, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1611 — Privilege Escalation: Mount
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1611 Mount Syscall in Container
       desc: mount syscall from inside application container
       condition: >
@@ -158,9 +117,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_privilege_escalation, T1611, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1036 — Defense Evasion: Binary from Tmp
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1036 Binary Executed from Tmp
       desc: Binary executed from /tmp or /var/tmp
       condition: >
@@ -171,9 +129,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_defense_evasion, T1036, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1036 — Defense Evasion: Base64 Decode
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1036 Base64 Decode Piped to Execution
       desc: base64 decode piped to shell execution
       condition: >
@@ -186,9 +143,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_defense_evasion, T1036, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1071 — Command and Control: Unexpected Outbound
-    # ─────────────────────────────────────────────────────────────────────────
+  
     - rule: T1071 Unexpected Outbound from Container
       desc: Outbound connection from app container to external IP
       condition: >
@@ -203,9 +159,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_command_and_control, T1071, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1105 — Command and Control: Download Tool
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1105 Download Tool Executed in Container
       desc: wget/curl used to download files in running container
       condition: >
@@ -217,9 +172,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_command_and_control, T1105, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1095 — Command and Control: Reverse Shell
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1095 Reverse Shell Pattern Detected
       desc: netcat with -e flag (reverse shell pattern)
       condition: >
@@ -231,9 +185,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_command_and_control, T1095, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1046 — Discovery: Network Scanning
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1046 Network Scanning Tool Executed
       desc: nmap or other recon tool executed in container
       condition: >
@@ -244,9 +197,8 @@ customRules:
       priority: CRITICAL
       tags: [mitre_discovery, T1046, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1552.007 — Credential Access: ServiceAccount Token
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1552.007 ServiceAccount Token Read
       desc: Service account token read by unexpected process
       condition: >
@@ -258,9 +210,8 @@ customRules:
       priority: WARNING
       tags: [mitre_credential_access, T1552.007, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1082 — Discovery: System Info Enumeration
-    # ─────────────────────────────────────────────────────────────────────────
+  
     - rule: T1082 System Info Enumeration from Shell
       desc: System recon commands (id, whoami, uname) from shell in container
       condition: >
@@ -272,9 +223,8 @@ customRules:
       priority: WARNING
       tags: [mitre_discovery, T1082, container]
 
-    # ─────────────────────────────────────────────────────────────────────────
     # T1552.001 — Credential Access: Grep for Secrets
-    # ─────────────────────────────────────────────────────────────────────────
+
     - rule: T1552.001 Grep for Secrets Pattern
       desc: grep searching for credentials (password, secret, token, api_key)
       condition: >
