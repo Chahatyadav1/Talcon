@@ -94,7 +94,7 @@ Applying the TracingPolicies and testing them one at a time: a spawned shell get
 
 ### 5–7. Detection → automatic quarantine, tested three ways
 
-The core loop: exec into a pod, try to act like an attacker, and watch the IR controller auto-quarantine it with a deny-all `NetworkPolicy` — tested against an existing pod, a freshly spawned "compromised" pod, and again in a completely different namespace to confirm it isn't hardcoded to one app.
+The core loop: exec into a pod, try to act like an attacker, and watch the IR controller auto-quarantine it with a deny-all `NetworkPolicy` — tested against an existing pod , a freshly spawned "compromised" pod.
 
 <img src="images/05-ir-controller-quarantine-demo-pod.png" width="800"/>
 
