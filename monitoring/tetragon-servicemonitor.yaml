@@ -1,42 +1,37 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: falco
-  namespace: monitoring      
+  name: tetragon
+  namespace: monitoring
   labels:
     release: my-kube-prometheus-stack
 spec:
   namespaceSelector:
     matchNames:
-      - falco
+      - kube-system
   selector:
     matchLabels:
-      app.kubernetes.io/name: falco
+      app.kubernetes.io/name: tetragon
   endpoints:
-    - port: http-metrics       
-      path: /metrics
+    - port: metrics
       interval: 30s
-      scrapeTimeout: 10s
-
+      path: /metrics
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: falcosidekick
+  name: tetragon-operator
   namespace: monitoring
   labels:
-    release: prometheus
+    release: my-kube-prometheus-stack
 spec:
   namespaceSelector:
     matchNames:
-      - falco
+      - kube-system
   selector:
     matchLabels:
-      app.kubernetes.io/name: falcosidekick
+      app.kubernetes.io/name: tetragon-operator
   endpoints:
-    - port: http             
-      path: /metrics
+    - port: metrics
       interval: 30s
-      scrapeTimeout: 10s
-
-
+      path: /metrics

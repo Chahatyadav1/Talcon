@@ -4,7 +4,7 @@ metadata:
   name: mitre-attack-mapping
   namespace: monitoring
   labels:
-    release: prometheus
+    release: my-kube-prometheus-stack
 spec:
   groups:
     - name: mitre.attack.events
