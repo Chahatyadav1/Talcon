@@ -76,7 +76,6 @@ def extract_pod_info(output: str, output_fields: dict):
     pod_name = None
     namespace = "default"
 
-    # Try parsing text output first (format from custom rules)
     if output:
         pod_match = re.search(r'pod=([^\s]+)', output)
         if pod_match:
