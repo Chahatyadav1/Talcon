@@ -154,6 +154,7 @@ customRules:
         and fd.rport != 443
         and fd.rport != 80
         and not fd.rip in ("::", "::1", "127.0.0.1", "0.0.0.0")
+        and not fd.rnet in (10.244.0.0/16)
         and not fd.rnet in (private_ip_ranges))
       output: "MITRE:T1071 Unexpected outbound user=%user.name proc=%proc.name dst=%fd.rip:%fd.rport pod=%k8s.pod.name ns=%k8s.ns.name"
       priority: CRITICAL
@@ -167,7 +168,7 @@ customRules:
         (spawned_process
         and in_app_container
         and proc.name in (wget, curl)
-        and not proc.pname in (apt, apt-get, yum, dnf, apk, pip, npm))
+        and not proc.pname in (apt, apt-get, yum, apk, pip, npm))
       output: "MITRE:T1105 Download tool user=%user.name proc=%proc.name cmdline=%proc.cmdline pod=%k8s.pod.name ns=%k8s.ns.name"
       priority: CRITICAL
       tags: [mitre_command_and_control, T1105, container]
@@ -179,7 +180,7 @@ customRules:
       condition: >
         (spawned_process
         and in_app_container
-        and proc.name in (nc, ncat, netcat, socat)
+        and proc.name in (nc, ncat, netcat)
         and (proc.cmdline contains " -e " or proc.cmdline contains "exec"))
       output: "MITRE:T1095 Reverse shell user=%user.name proc=%proc.name cmdline=%proc.cmdline pod=%k8s.pod.name ns=%k8s.ns.name"
       priority: CRITICAL
