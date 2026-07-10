@@ -36,19 +36,19 @@ customRules:
   mitre-rules.yaml: |-
 
     - list: shell_binaries
-      items: [bash, sh, dash, zsh, fish, ksh, csh, tcsh]
+      items: [bash, sh, zsh]
     
     - list: sensitive_files_lists
-      items: [/etc/shadow, /etc/gshadow, /etc/master.passwd, /etc/sudoers]
+      items: [/etc/shadow, /etc/gshadow, /etc/master.passwd, /etc/passwd]
     
     - list: network_tools
-      items: [wget, curl, nc, ncat, netcat, socat]
+      items: [wget, curl, nc]
     
     - list: recon_tools
       items: [nmap, masscan, zmap, arp-scan, netdiscover, nbtscan]
     
     - list: container_runtimes
-      items: [runc, containerd-shim, dockerd, containerd, crio, pause]
+      items: [runc, containerd-shim, dockerd, containerd, crio]
     
     - list: system_ns
       items: [kube-system, kube-public, kube-node-lease, kube-apiserver, monitoring, falco, security, cilium-spire, litmus, argocd]
