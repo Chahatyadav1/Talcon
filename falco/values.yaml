@@ -39,7 +39,7 @@ customRules:
       items: [bash, sh, zsh]
     
     - list: sensitive_files_lists
-      items: [/etc/shadow, /etc/gshadow, /etc/passwd]
+      items: [/etc/shadow, /etc/passwd]
     
     - list: system_ns
       items: [kube-system,monitoring, falco, security, cilium-spire, argocd]
